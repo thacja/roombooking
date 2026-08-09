@@ -80,6 +80,7 @@ if (!function_exists('route')) {
         $routes[] = [
             'method' => strtoupper($method),
             'path' => $path,
+            'pattern' => '@^' . preg_replace('#\{[^}]+\}#', '([^/]+)', preg_quote($path, '@')) . '$@',
             'handler' => $handler,
         ];
 
@@ -93,8 +94,18 @@ if (!function_exists('dispatch')) {
         $routes = $GLOBALS['_routes'] ?? [];
 
         foreach ($routes as $route) {
-            if ($route['method'] === $method && $route['path'] === $uri) {
+            if ($route['method'] !== $method) {
+                continue;
+            }
+
+            if ($route['path'] === $uri) {
                 ($route['handler'])();
+                return;
+            }
+
+            if (preg_match($route['pattern'], $uri, $matches)) {
+                array_shift($matches);
+                ($route['handler'])(...$matches);
                 return;
             }
         }

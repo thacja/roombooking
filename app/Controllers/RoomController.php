@@ -53,7 +53,6 @@ class RoomController
             WHERE 
                 r.is_active = 1
                 AND r.capacity >= :capacity
-                AND (:building = "" OR r.building = :building)
                 AND NOT EXISTS (
                     SELECT 1 
                     FROM bookings b 
@@ -64,20 +63,29 @@ class RoomController
                         AND b.start_time < :end_time
                         AND b.end_time > :start_time
                 )
-            GROUP BY r.id
-            ORDER BY r.building, r.floor, r.room_number
         ';
 
         $capacity = !empty($search['capacity']) ? (int) $search['capacity'] : 0;
         $building = $search['building'];
 
-        return $db->fetchAll($sql, [
+        $params = [
             'date' => $search['date'],
             'start_time' => $search['start_time'],
             'end_time' => $search['end_time'],
             'capacity' => $capacity,
-            'building' => $building,
-        ]);
+        ];
+
+        if (!empty($building)) {
+            $sql .= ' AND r.building = :building';
+            $params['building'] = $building;
+        }
+
+        $sql .= '
+            GROUP BY r.id
+            ORDER BY r.building, r.floor, r.room_number
+        ';
+
+        return $db->fetchAll($sql, $params);
     }
 
     private static function getBuildings(Database $db): array
